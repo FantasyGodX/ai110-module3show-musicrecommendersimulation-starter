@@ -59,3 +59,36 @@ def test_explain_recommendation_returns_non_empty_string():
     explanation = rec.explain_recommendation(user, song)
     assert isinstance(explanation, str)
     assert explanation.strip() != ""
+
+
+from src.recommender import load_songs, score_song, recommend_songs
+
+
+def test_load_songs_converts_numbers():
+    songs = load_songs("data/songs.csv")
+    assert len(songs) == 20
+    assert isinstance(songs[0]["energy"], float)
+    assert isinstance(songs[0]["tempo_bpm"], float)
+
+
+def test_score_song_returns_score_and_reasons():
+    song = {"genre": "pop", "mood": "happy", "energy": 0.8}
+    score, reasons = score_song({"genre": "pop", "mood": "happy", "energy": 0.8}, song)
+    assert score == 4.0
+    assert any("genre match" in r for r in reasons)
+
+
+def test_energy_rewards_closeness_not_height():
+    prefs = {"genre": "x", "mood": "y", "energy": 0.4}
+    near, _ = score_song(prefs, {"genre": "a", "mood": "b", "energy": 0.45})
+    far, _ = score_song(prefs, {"genre": "a", "mood": "b", "energy": 0.95})
+    assert near > far
+
+
+def test_recommend_songs_sorted_and_limited():
+    songs = load_songs("data/songs.csv")
+    recs = recommend_songs({"genre": "lofi", "mood": "chill", "energy": 0.35}, songs, k=3)
+    assert len(recs) == 3
+    scores = [r[1] for r in recs]
+    assert scores == sorted(scores, reverse=True)
+    assert recs[0][0]["genre"] == "lofi"
