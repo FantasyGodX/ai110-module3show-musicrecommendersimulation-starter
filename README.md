@@ -109,16 +109,32 @@ You can add more tests in `tests/test_recommender.py`.
 
 ## Sample Recommendation Output
 
-Paste a sample of your recommender's output here as a text block so a reader can see what it produces:
+Default "pop/happy" profile (`python -m src.main`):
 
 ```
-# e.g.:
-# User profile: genre=indie, mood=chill, energy=low
-# Recommendations:
-#   1. ...
-#   2. ...
-#   3. ...
+Profile: Default Pop/Happy  {'genre': 'pop', 'mood': 'happy', 'energy': 0.8}
+1. Sunrise City by Neon Echo  [pop/happy]
+   Score: 3.98 / 4.00
+     - genre match (+2.0)
+     - mood match (+1.0)
+     - energy 0.82 vs target 0.80 (+0.98)
+2. Gym Hero by Max Pulse  [pop/intense]
+   Score: 2.87 / 4.00
+     - genre match (+2.0)
+     - energy 0.93 vs target 0.80 (+0.87)
+3. Rooftop Lights by Indigo Parade  [indie pop/happy]
+   Score: 1.96 / 4.00
+     - mood match (+1.0)
+     - energy 0.76 vs target 0.80 (+0.96)
+4. Salt & Sunday by Marisol Vega  [latin/joyful]
+   Score: 1.00 / 4.00
+     - energy 0.80 vs target 0.80 (+1.00)
+5. Concrete Crown by Tre Valdez  [hip hop/confident]
+   Score: 0.98 / 4.00
+     - energy 0.78 vs target 0.80 (+0.98)
 ```
+
+The runner prints results for 7 profiles. See `model_card.md` for the rest.
 
 **Screenshot or video** *(optional)*: <!-- Insert a screenshot or demo video link here -->
 
@@ -126,25 +142,30 @@ Paste a sample of your recommender's output here as a text block so a reader can
 
 ## Experiments You Tried
 
-Use this section to document the experiments you ran. For example:
+### Experiment: weight shift
 
-- What happened when you changed the weight on genre from 2.0 to 0.5
-- What happened when you added tempo or valence to the score
-- How did your system behave for different types of users
+I halved the genre weight (2.0 -> 1.0) and doubled the energy weight (1.0 -> 2.0), so the max score stays 4.0. Run it with `python -m src.main --experiment`.
+
+What changed:
+
+- **Default Pop/Happy:** "Gym Hero" (pop/intense) dropped from #2 to #3. "Rooftop Lights" (indie pop/happy) moved up to #2. That feels more right for a happy listener.
+- **Mid-everything (folk/relaxed/0.5):** the folk song "Porch Light Folk" fell from #1 to #3 because its energy (0.30) is far from 0.5. Two "relaxed" songs closer in energy took over.
+- **Conflicting (blues/sad/0.9):** the top song's score fell from 3.48 to 2.96 because the energy mismatch now hurts twice as much.
+- **Chill Lofi / Deep Rock:** top picks did not change.
+
+Verdict: the experiment made results *different*, and for pop/happy and folk/relaxed arguably *better*, because the system stopped treating genre as a wall. It also made it slightly easier for loud songs from the wrong genre to sneak in for the conflicting profile. Neither setting is "right"; it depends on whether the user cares more about genre or about feel.
+
+Other things I tried while testing: a genre that isn't in the catalog (`k-pop`), and a conflicting profile (high energy + sad).
 
 ---
 
 ## Limitations and Risks
 
-Summarize some limitations of your recommender.
-
-Examples:
-
-- It only works on a tiny catalog
-- It does not understand lyrics or language
-- It might over favor one genre or mood
-
-You will go deeper on this in your model card.
+- The catalog is tiny (20 songs). Most genres have exactly one song, so after the genre match the list fills up with songs ranked only by energy.
+- Genre and mood are exact-string matches. "indie pop" gets no credit for pop, and "relaxed" gets no credit for "chill".
+- Tempo, valence, danceability, and acousticness are loaded but never scored.
+- A strong genre match can bury better mood/energy matches. Gym Hero (pop, intense) shows up for "happy pop" fans just because it is pop and loud.
+- It has no idea what the user has already heard, and it has no other users to learn from.
 
 ---
 
@@ -154,10 +175,6 @@ Read and complete `model_card.md`:
 
 [**Model Card**](model_card.md)
 
-Write 1 to 2 paragraphs here about what you learned:
+Building this showed me that a recommender is really just two small ideas: score one item, then sort everything by score. The "intelligence" is in the weights I picked, and those are my opinions. When I doubled the energy weight, the top songs changed without any new data, which means the person who sets the weights quietly decides what a "good" recommendation is. The reasons list was the most useful part: seeing "genre match (+2.0)" made it easy to spot why a song was ranked where it was.
 
-- about how recommenders turn data into predictions
-- about where bias or unfairness could show up in systems like this
-
-
-
+Bias shows up in the data and the rules. Mine only knows 20 songs and one label per genre, so someone who likes k-pop or metal gets worse results than someone who likes pop or lofi. In a real product the same thing would happen at scale: whoever is well represented in the data gets better recommendations. See [the model card](model_card.md) for the full write-up.
